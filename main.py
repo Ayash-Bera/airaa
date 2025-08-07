@@ -12,6 +12,9 @@ from agents.research_agent import Web3ResearchAgent
 from mcps.defillama_mcp import DeFiLlamaMCP
 from mcps.coinmarketcap_mcp import CoinMarketCapMCP
 from mcps.etherscan_mcp import EtherscanMCP
+from mcps.artemis_mcp import ArtemisMCP
+from mcps.dune_mcp import DuneAnalyticsMCP
+from mcps.nansen_mcp import NansenMCP
 
 # Load environment variables
 load_dotenv()
@@ -45,6 +48,21 @@ def initialize_agent():
         # Add Etherscan MCP (requires API key)
         etherscan = EtherscanMCP()
         for tool in etherscan.get_tools():
+            agent.add_tool(tool)
+            
+        # Add Artemis MCP (requires API key)
+        artemis = ArtemisMCP()
+        for tool in artemis.get_tools():
+            agent.add_tool(tool)
+            
+        # Add Dune Analytics MCP (requires API key)
+        dune = DuneAnalyticsMCP()
+        for tool in dune.get_tools():
+            agent.add_tool(tool)
+            
+        # Add Nansen MCP (requires API key)
+        nansen = NansenMCP()
+        for tool in nansen.get_tools():
             agent.add_tool(tool)
         
         return agent, None
@@ -92,11 +110,11 @@ def main():
         st.subheader("📊 Data Sources")
         sources_status = [
             ("DeFiLlama", "🟢 Active", "Free API"),
-            ("CoinMarketCap", "🟡 Pending", "Need API key"),
-            ("Etherscan", "🟡 Pending", "Need API key"),
-            ("Dune Analytics", "🔵 Coming soon", "Phase 2"),
-            ("Nansen", "🔵 Coming soon", "Phase 2"),
-            ("Artemis", "🔵 Coming soon", "Phase 2"),
+            ("CoinMarketCap", "🟡 Ready", "Need API key"),
+            ("Etherscan", "🟡 Ready", "Need API key"),
+            ("Artemis", "🟡 Ready", "Need API key"),
+            ("Dune Analytics", "🟡 Ready", "Need API key"),
+            ("Nansen", "🟡 Ready", "Need API key"),
         ]
 
         for source, status, note in sources_status:
