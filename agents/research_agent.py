@@ -3,7 +3,6 @@ from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.tools import Tool
-from langchain import hub
 from typing import List, Dict, Any
 import json
 
@@ -16,7 +15,7 @@ class Web3ResearchAgent:
         self.agent_executor = None
 
     def _initialize_llm(self):
-        """Initialize Gemini LLM"""
+        """Initialize Gemini LLM with longer timeout"""
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
@@ -24,7 +23,9 @@ class Web3ResearchAgent:
         return ChatGoogleGenerativeAI(
             model="gemini-1.5-flash",
             google_api_key=api_key,
-            temperature=0.3,
+            temperature=0.2,
+            timeout=60,  # Increased timeout
+            max_retries=3,
         )
 
     def add_tool(self, tool: Tool):
@@ -37,85 +38,134 @@ class Web3ResearchAgent:
         if not self.tools:
             return
 
-        # Get tool names and descriptions
-        tool_names = [tool.name for tool in self.tools]
-        tool_descriptions = "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools])
+        # Get available tool names for validation
+        available_tools = [tool.name for tool in self.tools]
+        tool_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
 
-        # Use ReAct agent with correct prompt variables
-        prompt = PromptTemplate.from_template("""
-You are a Web3 Research Co-Pilot. Answer questions about cryptocurrency, DeFi, and blockchain data using the available tools.
+        prompt = PromptTemplate.from_template("""You are a Web3 Research Co-Pilot. Answer questions using available tools efficiently.
 
-TOOLS:
+AVAILABLE TOOLS:
 {tools}
 
-Use the following format:
+TOOL NAMES: {tool_names}
 
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+RULES:
+1. Choose the RIGHT tool for each specific task
+2. For gas prices specifically, use "get_gas_prices" 
+3. For Ethereum stats/price, use "get_ethereum_stats"
+4. Don't repeat the same tool call - use different tools or give final answer
+5. If you have enough information, provide the Final Answer immediately
+
+Format:
+Question: the input question  
+Thought: what specific information do I need and which tool to use
+Action: [exact tool name from list]
+Action Input: [specific input needed]
+Observation: [result]
+Thought: do I have enough information now? 
+Final Answer: [complete answer with all requested data]
 
 Question: {input}
-{agent_scratchpad}
-""")
+{agent_scratchpad}""")
 
-        # Create ReAct agent
         self.agent = create_react_agent(self.llm, self.tools, prompt)
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=5,
+            max_iterations=4,  # Reduced to prevent loops
+            max_execution_time=60,
             return_intermediate_steps=True,
+            early_stopping_method="force"  # Forces stop after max iterations
         )
 
     def research(self, query: str) -> Dict[str, Any]:
-        """Process a research query and return structured results"""
+        """Process research query with better error handling"""
         if not self.agent_executor:
             return {
                 "answer": "No data sources connected. Please add API tools first.",
                 "sources": [],
                 "steps": [],
+                "success": False
             }
 
         try:
-            # Execute the query
+            # Prepare input with available tools
+            available_tools = [tool.name for tool in self.tools]
+            tool_descriptions = "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
+            
             result = self.agent_executor.invoke({
-                "input": query,
-                "tools": "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools]),
-                "tool_names": ", ".join([tool.name for tool in self.tools])
+                "input": query
             })
 
+            # Extract answer
+            answer = result.get("output", "No response generated")
+            
+            # Clean up answer if it contains reasoning
+            if "Final Answer:" in answer:
+                answer = answer.split("Final Answer:")[-1].strip()
+
             return {
-                "answer": result["output"],
+                "answer": answer,
                 "sources": self._extract_sources(result),
                 "steps": result.get("intermediate_steps", []),
                 "success": True,
+                "available_tools": available_tools
             }
 
         except Exception as e:
+            error_msg = str(e)
+            
+            # Handle specific errors
+            if "not found" in error_msg.lower():
+                return {
+                    "answer": f"Tool execution failed. Available tools: {', '.join([t.name for t in self.tools])}",
+                    "sources": [],
+                    "steps": [],
+                    "success": False,
+                    "error": error_msg
+                }
+            
             return {
-                "answer": f"Error processing query: {str(e)}",
+                "answer": f"Research failed: {error_msg}",
                 "sources": [],
                 "steps": [],
                 "success": False,
-                "error": str(e),
+                "error": error_msg
             }
 
     def _extract_sources(self, result: Dict[str, Any]) -> List[str]:
-        """Extract data sources used in the research"""
-        sources = []
-        if "intermediate_steps" in result:
-            for step in result["intermediate_steps"]:
-                if len(step) > 0 and hasattr(step[0], "tool"):
-                    sources.append(step[0].tool)
-        return list(set(sources))  # Remove duplicates
+        """Extract data sources from intermediate steps"""
+        sources = set()
+        
+        for step in result.get("intermediate_steps", []):
+            if len(step) >= 2:
+                action = step[0]
+                if hasattr(action, 'tool'):
+                    # Map tool names to source names
+                    tool_name = action.tool
+                    if 'defillama' in tool_name.lower():
+                        sources.add("DeFiLlama")
+                    elif 'etherscan' in tool_name.lower():
+                        sources.add("Etherscan")
+                    elif 'coinmarketcap' in tool_name.lower():
+                        sources.add("CoinMarketCap")
+                    elif 'artemis' in tool_name.lower():
+                        sources.add("Artemis")
+                    elif 'dune' in tool_name.lower():
+                        sources.add("Dune Analytics")
+                    elif 'nansen' in tool_name.lower():
+                        sources.add("Nansen")
+                    else:
+                        sources.add(tool_name)
+        
+        return list(sources)
 
     def get_available_tools(self) -> List[str]:
-        """Get list of available tool names"""
+        """Get available tool names"""
         return [tool.name for tool in self.tools]
+
+    def get_tool_info(self) -> Dict[str, str]:
+        """Get tool names and descriptions"""
+        return {tool.name: tool.description for tool in self.tools}
