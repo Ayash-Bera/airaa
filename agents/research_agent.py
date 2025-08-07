@@ -24,7 +24,7 @@ class Web3ResearchAgent:
             model="gemini-1.5-flash",
             google_api_key=api_key,
             temperature=0.2,
-            timeout=60,  # Increased timeout
+            timeout=120,  # Increased timeout
             max_retries=3,
         )
 

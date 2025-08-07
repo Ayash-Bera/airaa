@@ -35,7 +35,7 @@ def initialize_agent():
     try:
         agent = Web3ResearchAgent()
         
-        # Add DeFiLlama MCP (free, no API key needed)
+        # Add Enhanced DeFiLlama MCP (free, no API key needed)
         defillama = DeFiLlamaMCP()
         for tool in defillama.get_tools():
             agent.add_tool(tool)
@@ -136,9 +136,9 @@ def main():
         # Data Sources Status
         st.subheader("📊 Data Sources")
         
-        # DeFiLlama (always active)
-        st.success("🟢 Active DeFiLlama")
-        st.caption("Free API")
+        # Enhanced DeFiLlama (always active)
+        st.success("🟢 Enhanced DeFiLlama")
+        st.caption("Free API with advanced analytics")
         
         # Etherscan
         if api_status['etherscan']:
@@ -186,9 +186,12 @@ def main():
         st.subheader("💡 Try These Queries")
         sample_queries = [
             "What are current Ethereum gas prices?",
-            "Show me top 10 DeFi protocols by TVL",
-            "Analyze Uniswap protocol",
-            "What are the highest yield opportunities?"
+            "Show me enhanced protocol rankings with trends",
+            "Deep dive analysis on Uniswap protocol",
+            "Enhanced yield opportunities with risk scoring",
+            "Stablecoin market analysis",
+            "Cross-chain bridge analytics",
+            "What protocols are trending this week?"
         ]
         
         for query in sample_queries:
