@@ -1,0 +1,63 @@
+# ---------------------------------
+# Core Application Framework
+# ---------------------------------
+# For building the interactive web user interface
+streamlit==1.37.0
+
+# ---------------------------------
+# AI & LangChain Stack
+# ---------------------------------
+# The main framework for building the AI agent
+langchain==0.3.27
+# Core abstractions for LangChain
+langchain-core==0.3.72
+# Integrations with community-built tools
+langchain-community==0.3.27
+# The specific LangChain integration for Google's Gemini models
+langchain-google-genai==2.0.4
+# Google's own library that LangChain uses.
+google-generativeai==0.8.3
+
+# ---------------------------------
+# MCP Integration
+# ---------------------------------
+# Python MCP client for connecting to MCP servers
+mcp==1.0.0
+# Alternative MCP client if above not available
+langchain-mcp==0.1.0
+
+# ---------------------------------
+# Data & API Handling
+# ---------------------------------
+# The standard library for making HTTP requests to external APIs (DeFiLlama, Etherscan, etc.)
+requests==2.32.3
+
+# ---------------------------------
+# Data Manipulation & Display
+# ---------------------------------
+# Essential for handling tabular data from APIs and displaying it in tables/charts
+pandas==2.2.2
+
+# ---------------------------------
+# Environment Management
+# ---------------------------------
+# For loading your secret API keys from a .env file
+python-dotenv==1.0.1
+
+# ---------------------------------
+# Bonus: Composio Integration
+# ---------------------------------
+# Composio for LangChain integration (bonus feature)
+composio-langchain==0.8.7
+# Notion API client for document fetching
+notion-client==2.2.1
+
+# ---------------------------------
+# Social/Media Data Integration
+# ---------------------------------
+# Reddit API wrapper for social sentiment
+praw==7.7.1
+# News API integration
+newsapi-python==0.2.7
+# Twitter/X API v2 integration
+tweepy==4.14.0
