@@ -214,7 +214,7 @@ class EtherscanMCP:
             Tool(
                 name="get_ethereum_stats",
                 description="Get Ethereum network statistics including price, supply, and market cap",
-                func=lambda _: self.get_ethereum_stats(),
+                func=self._get_ethereum_stats_wrapper,
             ),
             Tool(
                 name="analyze_ethereum_wallet",
@@ -224,16 +224,28 @@ class EtherscanMCP:
             Tool(
                 name="get_wallet_transactions",
                 description="Get recent transactions for an Ethereum address. Input: wallet address",
-                func=lambda address: self.get_recent_transactions(address),
+                func=self.get_recent_transactions,
             ),
             Tool(
                 name="get_gas_prices",
                 description="Get current Ethereum gas prices and estimated transaction costs",
-                func=lambda _: self.get_gas_tracker(),
+                func=self._get_gas_tracker_wrapper,
             ),
             Tool(
                 name="get_top_ethereum_accounts",
                 description="Get top Ethereum accounts by balance (major exchanges)",
-                func=lambda _: self.get_top_accounts(),
+                func=self._get_top_accounts_wrapper,
             ),
         ]
+
+    def _get_ethereum_stats_wrapper(self, query: str) -> str:
+        """Wrapper for get_ethereum_stats"""
+        return self.get_ethereum_stats()
+    
+    def _get_gas_tracker_wrapper(self, query: str) -> str:
+        """Wrapper for get_gas_tracker"""
+        return self.get_gas_tracker()
+    
+    def _get_top_accounts_wrapper(self, query: str) -> str:
+        """Wrapper for get_top_accounts"""
+        return self.get_top_accounts()

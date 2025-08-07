@@ -1,8 +1,9 @@
 import os
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.tools import Tool
+from langchain import hub
 from typing import List, Dict, Any
 import json
 
@@ -24,7 +25,6 @@ class Web3ResearchAgent:
             model="gemini-1.5-flash",
             google_api_key=api_key,
             temperature=0.3,
-            convert_system_message_to_human=True,
         )
 
     def add_tool(self, tool: Tool):
@@ -37,40 +37,40 @@ class Web3ResearchAgent:
         if not self.tools:
             return
 
-        # Create the prompt template
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                (
-                    "system",
-                    """You are a Web3 Research Co-Pilot. Your role is to help users research cryptocurrency, DeFi protocols, blockchain data, and Web3 analytics.
+        # Get tool names and descriptions
+        tool_names = [tool.name for tool in self.tools]
+        tool_descriptions = "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools])
 
-You have access to various data sources and should:
-1. Understand the user's research question
-2. Break down complex queries into steps
-3. Use appropriate tools to fetch data
-4. Synthesize information from multiple sources
-5. Provide clear, actionable insights with source citations
+        # Use ReAct agent with correct prompt variables
+        prompt = PromptTemplate.from_template("""
+You are a Web3 Research Co-Pilot. Answer questions about cryptocurrency, DeFi, and blockchain data using the available tools.
 
-Available tools: {tool_names}
+TOOLS:
+{tools}
 
-Always cite your data sources and be transparent about limitations of free tier APIs.
+Use the following format:
 
-Current tools available: {tool_names}
-""",
-                ),
-                ("human", "{input}"),
-                ("placeholder", "{agent_scratchpad}"),
-            ]
-        )
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
 
-        # Create agent
-        self.agent = create_tool_calling_agent(self.llm, self.tools, prompt)
+Question: {input}
+{agent_scratchpad}
+""")
+
+        # Create ReAct agent
+        self.agent = create_react_agent(self.llm, self.tools, prompt)
         self.agent_executor = AgentExecutor(
             agent=self.agent,
             tools=self.tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=3,
+            max_iterations=5,
             return_intermediate_steps=True,
         )
 
@@ -85,9 +85,11 @@ Current tools available: {tool_names}
 
         try:
             # Execute the query
-            result = self.agent_executor.invoke(
-                {"input": query, "tool_names": [tool.name for tool in self.tools]}
-            )
+            result = self.agent_executor.invoke({
+                "input": query,
+                "tools": "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools]),
+                "tool_names": ", ".join([tool.name for tool in self.tools])
+            })
 
             return {
                 "answer": result["output"],
